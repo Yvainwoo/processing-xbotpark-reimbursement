@@ -1,0 +1,31 @@
+# Reimbursement processing data and generated deliverables
+/tmp/
+/output/
+/docs/
+/docs/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node.js dependencies
+node_modules/
+
+# Local credentials and configuration
+.env
+.env.*
+!.env.example
+
+# Editor, OS, and temporary files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+~$*
+*.tmp
+*.bak
