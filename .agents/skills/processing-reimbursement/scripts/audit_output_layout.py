@@ -9,8 +9,10 @@ from pathlib import Path
 
 
 ARCHIVE = re.compile(r"(?P<date>\d{8})_(?P<category>.+)证明材料_(?P<amount>\d+(?:\.\d+)?)元")
+GROUP = re.compile(r"(?P<date>\d{8})_(?P<category>.+)_(?P<amount>\d+(?:\.\d+)?)")
 ATTACHMENT = re.compile(r"\d+_.+_(?:发票|订单凭证|付款凭证)(?:_\d+)?\.[^.]+")
 FORMAL_FILE = re.compile(r"(?:\d{8}_.+证明材料_.+元|信息概要页_.+_.+元|\d{8}_采购申请单)\.(?:pdf|xlsx)", re.I)
+SHARED_FILE = re.compile(r"\d{8}_.+费用报销附录表\.pdf", re.I)
 TEMP_NAMES = {"tmp", "downloads", "qa", "evidence-images", "__pycache__"}
 
 
@@ -21,39 +23,58 @@ def audit(root: Path) -> tuple[list[str], list[str]]:
     temp = root / "tmp"
     if not output.is_dir():
         errors.append(f"缺少正式交付目录：{output}")
-    if not temp.is_dir():
-        errors.append(f"缺少根目录临时目录：{temp}")
+    if not temp.exists():
+        report.append("根目录 tmp/ 已清理")
+    elif not temp.is_dir():
+        errors.append(f"根目录临时路径不是文件夹：{temp}")
     for item in root.iterdir():
-        if item.is_file() and FORMAL_FILE.fullmatch(item.name):
+        if item.is_file() and (FORMAL_FILE.fullmatch(item.name) or SHARED_FILE.fullmatch(item.name)):
             errors.append(f"正式文件仍在根目录：{item}")
-        if item.is_dir() and ARCHIVE.fullmatch(item.name):
-            errors.append(f"原始附件文件夹仍在根目录：{item}")
+        if item.is_dir() and (ARCHIVE.fullmatch(item.name) or GROUP.fullmatch(item.name)):
+            errors.append(f"交付文件夹仍在根目录：{item}")
     if not output.is_dir():
         return errors, report
 
-    archive_count = 0
+    group_count = 0
     attachment_count = 0
+    formal_count = 0
+    shared_count = 0
     for item in sorted(output.iterdir()):
         if item.is_file():
-            if item.suffix.lower() not in {".pdf", ".xlsx"}:
-                errors.append(f"output/ 顶层含非交付文件：{item}")
+            if SHARED_FILE.fullmatch(item.name):
+                shared_count += 1
+            else:
+                errors.append(f"output/ 顶层含未分类文件：{item}")
             continue
         if not item.is_dir():
             continue
-        match = ARCHIVE.fullmatch(item.name)
+        match = GROUP.fullmatch(item.name)
         if match is None:
             errors.append(f"output/ 顶层含未知目录：{item}")
             continue
-        archive_count += 1
+        group_count += 1
         parts = match.groupdict()
-        proof = output / f"{item.name}.pdf"
-        summary = output / f"信息概要页_{parts['category']}_{parts['amount']}元.pdf"
+        archive_name = f"{parts['date']}_{parts['category']}证明材料_{parts['amount']}元"
+        archive = item / archive_name
+        proof = item / f"{archive_name}.pdf"
+        summary = item / f"信息概要页_{parts['category']}_{parts['amount']}元.pdf"
+        if not archive.is_dir():
+            errors.append(f"类型文件夹缺少原始附件目录：{archive}")
         if not proof.is_file():
             errors.append(f"原始附件缺少同名证明材料 PDF：{proof}")
         if not summary.is_file():
             errors.append(f"原始附件缺少对应信息概要页 PDF：{summary}")
+        allowed_files = {proof.name, summary.name}
+        if parts["category"] == "研发物料":
+            procurement = item / f"{parts['date']}_采购申请单"
+            xlsx = procurement.with_suffix(".xlsx")
+            pdf = procurement.with_suffix(".pdf")
+            if xlsx.exists() or pdf.exists():
+                allowed_files.update({xlsx.name, pdf.name})
+                if not xlsx.is_file() or not pdf.is_file():
+                    errors.append(f"采购申请单 XLSX/PDF 未成对交付：{item}")
         count = 0
-        for child in sorted(item.iterdir()):
+        for child in sorted(archive.iterdir()) if archive.is_dir() else []:
             if child.is_dir():
                 errors.append(f"原始附件文件夹含子目录：{child}")
             elif not ATTACHMENT.fullmatch(child.name):
@@ -61,19 +82,19 @@ def audit(root: Path) -> tuple[list[str], list[str]]:
             else:
                 count += 1
         attachment_count += count
+        for child in item.iterdir():
+            if child.is_dir() and child != archive:
+                errors.append(f"类型文件夹含未知目录：{child}")
+            elif child.is_file() and child.name not in allowed_files:
+                errors.append(f"类型文件夹含未分类文件：{child}")
+            elif child.is_file():
+                formal_count += 1
         report.append(f"{item.name}：{count} 个原始附件")
 
     for item in output.rglob("*"):
         if item.is_dir() and item.name.lower() in TEMP_NAMES:
             errors.append(f"临时目录混入 output/：{item}")
-    for item in output.glob("*_采购申请单.*"):
-        if item.suffix.lower() in {".xlsx", ".pdf"}:
-            counterpart = item.with_suffix(".pdf" if item.suffix.lower() == ".xlsx" else ".xlsx")
-            if not counterpart.is_file():
-                errors.append(f"采购申请单缺少配套文件：{counterpart}")
-
-    formal_count = sum(1 for item in output.iterdir() if item.is_file())
-    report.append(f"合计：{archive_count} 个原始附件文件夹，{attachment_count} 个附件，{formal_count} 个顶层交付文件")
+    report.append(f"合计：{group_count} 个类型文件夹，{attachment_count} 个附件，{formal_count} 个类型文件，{shared_count} 个共用文件")
     return errors, report
 
 

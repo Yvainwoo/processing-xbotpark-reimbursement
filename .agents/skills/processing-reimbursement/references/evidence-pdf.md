@@ -19,7 +19,7 @@
 
 PDF 是凭证的展示件，不是原始归档。必须保留每一份下载的原始文件。
 
-多类型交付时，将每类的 `manifest`（根目录 `tmp/`）、`evidence_pdf` 和 `summary_pdf`（`output/`）、`qa_dir`（根目录 `tmp/`）写入同一个 UTF-8 JSON 数组，再一次调用：
+多类型交付时，将每类的 `manifest`（根目录 `tmp/`）、`evidence_pdf` 和 `summary_pdf`（各自的 `output/YYYYMMDD_类型名称_汇总金额/`）、`qa_dir`（根目录 `tmp/`）写入同一个 UTF-8 JSON 数组，再一次调用：
 
 ```powershell
 python scripts/verify_delivery.py --jobs-json '<任务 tmp>/delivery-jobs.json' --render

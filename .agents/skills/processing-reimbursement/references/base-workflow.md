@@ -80,7 +80,7 @@ $params = @{ extra = $extra } | ConvertTo-Json -Compress
 lark-cli api GET "/open-apis/drive/v1/medias/<file_token>/download" --params $params --output '<destination>' --as user
 ```
 
-范围和计划校验通过后，优先使用内置下载脚本。先在工作区根目录创建 `tmp/<本类型批次>/downloads/`；正式交付目录 `output/<本类型批次>/` 不承载临时文件。三个字段 ID 均来自刚读取的字段结构：
+范围和计划校验通过后，优先使用内置下载脚本。先在工作区根目录创建 `tmp/<本类型批次>/downloads/`；正式交付目录 `output/YYYYMMDD_类型名称_汇总金额/` 不承载临时文件。三个字段 ID 均来自刚读取的字段结构：
 
 ```powershell
 python scripts/download_manifest_attachments.py `
@@ -104,13 +104,13 @@ python scripts/download_manifest_attachments.py `
 
 依据实际下载文件的文件签名或 MIME 类型确定扩展名；不得假定订单或付款附件一定是图片。生成 PDF 前，确认清单中每个附件 token 都有下载文件，并重新运行 `scripts/validate_manifest.py --materials tmp/<本类型批次>/downloads`。
 
-下载校验通过后，必须将正式交付的原始附件导出到 `output/YYYYMMDD_类型名称证明材料_汇总金额元/`，与同名证明材料 PDF 一同位于 `output/` 下。附件文件名为 `序号_费用名称_材料类型名称.扩展名`，其中序号来自清单中的多维表格“序号”字段，材料类型名称为“发票”“订单凭证”“付款凭证”。对同一记录的同类第 2 份及之后附件追加 `_2`、`_3`；费用名称中的 Windows 非法字符使用对应全角字符，不能静默删减或改写其他文字。
+下载校验通过后，必须将正式交付的原始附件导出到 `output/YYYYMMDD_类型名称_汇总金额/YYYYMMDD_类型名称证明材料_汇总金额元/`，与同名证明材料 PDF 一同位于该类型文件夹下。附件文件名为 `序号_费用名称_材料类型名称.扩展名`，其中序号来自清单中的多维表格“序号”字段，材料类型名称为“发票”“订单凭证”“付款凭证”。对同一记录的同类第 2 份及之后附件追加 `_2`、`_3`；费用名称中的 Windows 非法字符使用对应全角字符，不能静默删减或改写其他文字。
 
 ```powershell
 python scripts/export_original_attachments.py `
   --manifest 'tmp/<本类型批次>/manifest.json' `
   --materials 'tmp/<本类型批次>/downloads' `
-  --out 'output/<本类型批次>' `
+  --out 'output/YYYYMMDD_<类型名称>_<汇总金额>/<本类型批次>' `
   --dry-run
 ```
 

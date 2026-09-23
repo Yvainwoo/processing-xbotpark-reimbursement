@@ -15,7 +15,7 @@
 
 ## 输出与检查
 
-- 文件名：`output/信息概要页_<类型名称>_<汇总金额>元.pdf`。
+- 文件名：`output/YYYYMMDD_<类型名称>_<汇总金额>/信息概要页_<类型名称>_<汇总金额>元.pdf`，类型文件夹金额不加“元”。
 - 页面：单页 A4。PPT 幻灯片自身尺寸保持不变，打印输出时适应 A4 纸张。
 - 复制模板到 `tmp/` 后修改，禁止覆盖原始 PPT 模板；在 PowerPoint 中选择 PDF 打印机、A4 纸张、整页幻灯片和适应纸张大小后打印。不得使用“另存为 PDF”，以免输出保留 16:9 页面尺寸。
 - 只可替换字段文本；不得修改任何文字的字号、字体、颜色、下划线、位置、文本框尺寸或整体版式。若项目名称追加费用类型后换行、溢出或遮挡，停止并询问用户是调整填写内容，还是由用户先修改 PPT 模板。
@@ -29,7 +29,7 @@
 powershell -ExecutionPolicy Bypass -File scripts/print_summary_page.ps1 `
   -TemplatePptx assets/信息概要的模版.pptx `
   -WorkPptx 'tmp/<本类型批次>/summary-a4-print/信息概要页_<类型名称>_<金额>元.pptx' `
-  -OutputPdf 'output/信息概要页_<类型名称>_<金额>元.pdf' `
+  -OutputPdf 'output/YYYYMMDD_<类型名称>_<金额>/信息概要页_<类型名称>_<金额>元.pdf' `
   -Category '<类型名称>' -Amount '<金额>'
 ```
 
@@ -39,8 +39,8 @@ powershell -ExecutionPolicy Bypass -File scripts/print_summary_page.ps1 `
 
 ```json
 [
-  {"category":"办公用品","amount":"125.83","work_pptx":"<工作区>/tmp/<办公用品批次>/summary-a4-print/信息概要页_办公用品_125.83元.pptx","output_pdf":"<工作区>/output/信息概要页_办公用品_125.83元.pdf"},
-  {"category":"交通差旅","amount":"873.49","work_pptx":"<工作区>/tmp/<交通差旅批次>/summary-a4-print/信息概要页_交通差旅_873.49元.pptx","output_pdf":"<工作区>/output/信息概要页_交通差旅_873.49元.pdf"}
+  {"category":"办公用品","amount":"125.83","work_pptx":"<工作区>/tmp/<办公用品批次>/summary-a4-print/信息概要页_办公用品_125.83元.pptx","output_pdf":"<工作区>/output/YYYYMMDD_办公用品_125.83/信息概要页_办公用品_125.83元.pdf"},
+  {"category":"交通差旅","amount":"873.49","work_pptx":"<工作区>/tmp/<交通差旅批次>/summary-a4-print/信息概要页_交通差旅_873.49元.pptx","output_pdf":"<工作区>/output/YYYYMMDD_交通差旅_873.49/信息概要页_交通差旅_873.49元.pdf"}
 ]
 ```
 

@@ -59,13 +59,13 @@
   -TemplateXlsx assets/采购申请单模板.xlsx `
   -ManifestPath tmp/<本类型批次>/manifest.json `
   -RecordsPath tmp/records-0.json,tmp/records-200.json `
-  -OutputXlsx output/YYYYMMDD_采购申请单.xlsx `
+  -OutputXlsx output/YYYYMMDD_研发物料_<该类型汇总金额>/YYYYMMDD_采购申请单.xlsx `
   -Applicant <报销人> -Department <申请部门> `
   -ApplicationDate YYYY-MM-DD -Category 研发物料
 
 & scripts/print_procurement_application.ps1 `
-  -InputXlsx output/YYYYMMDD_采购申请单.xlsx `
-  -OutputPdf output/YYYYMMDD_采购申请单.pdf `
+  -InputXlsx output/YYYYMMDD_研发物料_<该类型汇总金额>/YYYYMMDD_采购申请单.xlsx `
+  -OutputPdf output/YYYYMMDD_研发物料_<该类型汇总金额>/YYYYMMDD_采购申请单.pdf `
   -SheetName 模板 -WaitSeconds 20
 ```
 
