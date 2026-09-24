@@ -1,7 +1,9 @@
 param(
   [Parameter(Mandatory = $true)][string]$TemplatePptx,
   [Parameter(Mandatory = $true)][string]$JobsJson,
-  [string]$ProjectName = '儿童手工',
+  [Parameter(Mandatory = $true)][string]$ProjectName,
+  [Parameter(Mandatory = $true)][string]$Applicant,
+  [Parameter(Mandatory = $true)][string]$Phone,
   [ValidateRange(1, 60)][int]$WaitSeconds = 20,
   [switch]$PrepareOnly
 )
@@ -33,9 +35,17 @@ function Write-SlideXml([string]$pptxPath, [string]$slideXml) {
 
 $templatePath = (Resolve-Path -LiteralPath $TemplatePptx).Path
 $templateXml = Read-SlideXml $templatePath
-if (([regex]::Matches($templateXml, [regex]::Escape($ProjectName))).Count -ne 1 -or
-    ([regex]::Matches($templateXml, 'XXX')).Count -ne 1) {
-  throw '模板中项目名称或金额占位符不唯一；请检查模板后再打印。'
+$placeholders = [regex]::Matches($templateXml, '<a:t>XXX\s*</a:t>')
+if ($placeholders.Count -ne 4) {
+  throw '模板中应有项目名称、金额、报销人和电话四个占位符。'
+}
+$labels = @('项目名称', '报销总金额', '报销人', '报销人电话')
+for ($index = 0; $index -lt $labels.Count; $index += 1) {
+  $labelMatch = [regex]::Match($templateXml, '<a:t>' + [regex]::Escape($labels[$index]) + '</a:t>')
+  if (-not $labelMatch.Success -or $labelMatch.Index -ge $placeholders[$index].Index -or
+      ($index -gt 0 -and $labelMatch.Index -le $placeholders[$index - 1].Index)) {
+    throw "概要页模板字段顺序与占位符不符：$($labels[$index])"
+  }
 }
 $jobs = @(Get-Content -LiteralPath $JobsJson -Raw -Encoding UTF8 | ConvertFrom-Json)
 if ($jobs.Count -eq 0) { throw '没有待打印的信息概要页。' }
@@ -51,15 +61,22 @@ foreach ($job in $jobs) {
   $outputPath = [System.IO.Path]::GetFullPath([string]$job.output_pdf)
   if (Test-Path -LiteralPath $workPath) { throw "拒绝覆盖已有工作 PPTX：$workPath" }
   if (Test-Path -LiteralPath $outputPath) { throw "拒绝覆盖已有 PDF：$outputPath" }
-  $replacementProject = "$ProjectName（$categoryText）"
-  $updatedXml = $templateXml.Replace($ProjectName, $replacementProject).Replace('XXX', $amountText)
-  if ($updatedXml.Replace($replacementProject, $ProjectName).Replace($amountText, 'XXX') -cne $templateXml) {
-    throw "替换后样式审计失败：$categoryText"
+  $replacements = @("$ProjectName（$categoryText）", $amountText, $Applicant.Trim(), $Phone.Trim())
+  if ($replacements | Where-Object { -not $_ }) { throw '概要页内容不能留空。' }
+  $script:slot = 0
+  $updatedXml = [regex]::Replace($templateXml, '<a:t>XXX\s*</a:t>', {
+    param($match)
+    $value = [System.Security.SecurityElement]::Escape([string]$replacements[$script:slot])
+    $script:slot += 1
+    return "<a:t>$value</a:t>"
+  })
+  if ($script:slot -ne 4 -or ([regex]::Matches($updatedXml, '<a:t>XXX\s*</a:t>')).Count -ne 0) {
+    throw "占位符替换失败：$categoryText"
   }
   $prepared += [pscustomobject]@{ WorkPath=$workPath; OutputPath=$outputPath; UpdatedXml=$updatedXml; Category=$categoryText }
 }
 
-# 全部预检通过后再制作工作副本。只改两处 XML 文本，并在打印前核验。
+# 全部预检通过后再制作工作副本。只改四处 XML 文本，并在打印前核验。
 foreach ($item in $prepared) {
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $item.WorkPath) | Out-Null
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $item.OutputPath) | Out-Null

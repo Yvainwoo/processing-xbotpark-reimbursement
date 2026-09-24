@@ -86,6 +86,9 @@ try {
       $sheet.Cells.Item($row, ($column + 1)) = $values[$column]
     }
   }
+  for ($row = ($firstItemRow + $items.Count); $row -le $lastItemRow; $row += 1) {
+    $sheet.Cells.Item($row, 9).ClearContents()
+  }
   $sheet.Cells.Item(28, 7) = [double]$total
   $sheet.Cells.Item(28, 8) = [double]$total
   $workbook.Save()

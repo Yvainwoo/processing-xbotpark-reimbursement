@@ -54,6 +54,9 @@ def main() -> int:
         if record_id in seen_ids:
             errors.append(f"Duplicate record_id: {record_id}")
         seen_ids.add(record_id)
+        for field in ("sequence", "title", "category"):
+            if "\ufffd" in str(item.get(field, "")):
+                errors.append(f"{record_id}: {field} contains a Unicode replacement character")
         if not str(item.get("title", "")).strip():
             errors.append(f"{record_id}: title is blank")
         try:
@@ -76,6 +79,8 @@ def main() -> int:
             tokens: set[str] = set()
             for index, file in enumerate(files):
                 token = str(file.get("token", "")).strip() if isinstance(file, dict) else ""
+                if isinstance(file, dict) and "\ufffd" in str(file.get("name", "")):
+                    errors.append(f"{record_id}: {role}[{index}] name contains a Unicode replacement character")
                 if not token:
                     errors.append(f"{record_id}: {role}[{index}] has no token")
                 elif token in tokens:
