@@ -13,6 +13,7 @@ GROUP = re.compile(r"(?P<date>\d{8})_(?P<category>.+)_(?P<amount>\d+(?:\.\d+)?)"
 ATTACHMENT = re.compile(r"\d+_.+_(?:发票|订单凭证|付款凭证)(?:_\d+)?\.[^.]+")
 FORMAL_FILE = re.compile(r"(?:\d{8}_.+证明材料_.+元|信息概要页_.+_.+元|\d{8}_采购申请单)\.(?:pdf|xlsx)", re.I)
 SHARED_FILE = re.compile(r"\d{8}_.+费用报销附录表\.pdf", re.I)
+PROCUREMENT_FILE = re.compile(r"(?P<date>\d{8})_采购申请单\.(?:xlsx|pdf)", re.I)
 TEMP_NAMES = {"tmp", "downloads", "qa", "evidence-images", "__pycache__"}
 
 
@@ -39,9 +40,14 @@ def audit(root: Path) -> tuple[list[str], list[str]]:
     attachment_count = 0
     formal_count = 0
     shared_count = 0
+    procurement_dates: set[str] = set()
     for item in sorted(output.iterdir()):
         if item.is_file():
-            if SHARED_FILE.fullmatch(item.name):
+            procurement_match = PROCUREMENT_FILE.fullmatch(item.name)
+            if procurement_match:
+                procurement_dates.add(procurement_match['date'])
+                shared_count += 1
+            elif SHARED_FILE.fullmatch(item.name):
                 shared_count += 1
             else:
                 errors.append(f"output/ 顶层含未分类文件：{item}")
@@ -65,13 +71,6 @@ def audit(root: Path) -> tuple[list[str], list[str]]:
         if not summary.is_file():
             errors.append(f"原始附件缺少对应信息概要页 PDF：{summary}")
         allowed_files = {proof.name, summary.name}
-        procurement = item / f"{parts['date']}_采购申请单"
-        xlsx = procurement.with_suffix(".xlsx")
-        pdf = procurement.with_suffix(".pdf")
-        if xlsx.exists() or pdf.exists():
-            allowed_files.update({xlsx.name, pdf.name})
-            if not xlsx.is_file() or not pdf.is_file():
-                errors.append(f"采购申请单 XLSX/PDF 未成对交付：{item}")
         count = 0
         for child in sorted(archive.iterdir()) if archive.is_dir() else []:
             if child.is_dir():
@@ -85,10 +84,18 @@ def audit(root: Path) -> tuple[list[str], list[str]]:
             if child.is_dir() and child != archive:
                 errors.append(f"类型文件夹含未知目录：{child}")
             elif child.is_file() and child.name not in allowed_files:
-                errors.append(f"类型文件夹含未分类文件：{child}")
+                if PROCUREMENT_FILE.fullmatch(child.name):
+                    errors.append(f"采购申请单应作为本批共用文件放在 output/ 顶层：{child}")
+                else:
+                    errors.append(f"类型文件夹含未分类文件：{child}")
             elif child.is_file():
                 formal_count += 1
         report.append(f"{item.name}：{count} 个原始附件")
+
+    for date in sorted(procurement_dates):
+        procurement = output / f"{date}_采购申请单"
+        if not procurement.with_suffix('.xlsx').is_file() or not procurement.with_suffix('.pdf').is_file():
+            errors.append(f"共用采购申请单 XLSX/PDF 未成对交付：{procurement}")
 
     for item in output.rglob("*"):
         if item.is_dir() and item.name.lower() in TEMP_NAMES:

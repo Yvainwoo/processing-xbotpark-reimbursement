@@ -6,7 +6,6 @@ param(
   [Parameter(Mandatory = $true)][string]$Applicant,
   [string]$Department = '项目部',
   [Parameter(Mandatory = $true)][datetime]$ApplicationDate,
-  [string]$Category = '',
   [switch]$Overwrite
 )
 
@@ -17,7 +16,7 @@ $templatePath = (Resolve-Path -LiteralPath $TemplateXlsx).Path
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($null -eq $manifest.records) { throw '清单缺少 records 数组。' }
 
-# 本批清单中实物图字段非空的记录均可纳入；Category 仅用于按实际费用类型分组。
+# 本批所有类型中实物图字段非空的记录汇总到同一份申请单。
 $imageRecordIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 foreach ($recordPath in $RecordsPath) {
   $payload = Get-Content -LiteralPath $recordPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -36,7 +35,7 @@ foreach ($recordPath in $RecordsPath) {
 
 $items = @(
   $manifest.records |
-    Where-Object { (-not $Category -or $_.category -eq $Category) -and $imageRecordIds.Contains([string]$_.record_id) } |
+    Where-Object { $imageRecordIds.Contains([string]$_.record_id) } |
     ForEach-Object {
       $title = ([string]$_.title).Trim()
       $amount = [decimal]$_.amount
@@ -51,7 +50,7 @@ $firstItemRow = 7
 $lastItemRow = 27
 $capacity = $lastItemRow - $firstItemRow + 1
 if ($items.Count -gt $capacity) {
-  throw "入选 $($items.Count) 条，超过模板单页 $capacity 条容量；请先确认是否拆分为多份采购申请单。"
+  throw "入选 $($items.Count) 条，超过模板单页 $capacity 条容量；请先确认同一份采购申请单的续页方式。"
 }
 $total = ($items | Measure-Object -Property Amount -Sum).Sum
 $reason = (($items | Select-Object -ExpandProperty Category -Unique) -join '、')
