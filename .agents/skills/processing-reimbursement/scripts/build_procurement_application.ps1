@@ -6,7 +6,7 @@ param(
   [Parameter(Mandatory = $true)][string]$Applicant,
   [string]$Department = '项目部',
   [Parameter(Mandatory = $true)][datetime]$ApplicationDate,
-  [string]$Category = '研发物料',
+  [string]$Category = '',
   [switch]$Overwrite
 )
 
@@ -17,7 +17,7 @@ $templatePath = (Resolve-Path -LiteralPath $TemplateXlsx).Path
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($null -eq $manifest.records) { throw '清单缺少 records 数组。' }
 
-# 仅把“当前已整理清单中 + 类型为研发物料 + 原始实物图字段非空”的记录纳入申请单。
+# 本批清单中实物图字段非空的记录均可纳入；Category 仅用于按实际费用类型分组。
 $imageRecordIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 foreach ($recordPath in $RecordsPath) {
   $payload = Get-Content -LiteralPath $recordPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -36,7 +36,7 @@ foreach ($recordPath in $RecordsPath) {
 
 $items = @(
   $manifest.records |
-    Where-Object { $_.category -eq $Category -and $imageRecordIds.Contains([string]$_.record_id) } |
+    Where-Object { (-not $Category -or $_.category -eq $Category) -and $imageRecordIds.Contains([string]$_.record_id) } |
     ForEach-Object {
       $title = ([string]$_.title).Trim()
       $amount = [decimal]$_.amount
@@ -46,7 +46,7 @@ $items = @(
     }
 )
 
-if ($items.Count -eq 0) { throw ("没有 [实物图] 有图的 {0} 记录。" -f $Category) }
+if ($items.Count -eq 0) { throw '本批所选范围内没有 [实物图] 有图的记录。' }
 $firstItemRow = 7
 $lastItemRow = 27
 $capacity = $lastItemRow - $firstItemRow + 1
@@ -105,6 +105,6 @@ try {
 [pscustomobject]@{
   selected_record_count = $items.Count
   total = ('{0:F2}' -f $total)
-  category = $Category
+  category = $reason
   output_path = $outputPath
 } | ConvertTo-Json

@@ -65,14 +65,13 @@ def audit(root: Path) -> tuple[list[str], list[str]]:
         if not summary.is_file():
             errors.append(f"原始附件缺少对应信息概要页 PDF：{summary}")
         allowed_files = {proof.name, summary.name}
-        if parts["category"] == "研发物料":
-            procurement = item / f"{parts['date']}_采购申请单"
-            xlsx = procurement.with_suffix(".xlsx")
-            pdf = procurement.with_suffix(".pdf")
-            if xlsx.exists() or pdf.exists():
-                allowed_files.update({xlsx.name, pdf.name})
-                if not xlsx.is_file() or not pdf.is_file():
-                    errors.append(f"采购申请单 XLSX/PDF 未成对交付：{item}")
+        procurement = item / f"{parts['date']}_采购申请单"
+        xlsx = procurement.with_suffix(".xlsx")
+        pdf = procurement.with_suffix(".pdf")
+        if xlsx.exists() or pdf.exists():
+            allowed_files.update({xlsx.name, pdf.name})
+            if not xlsx.is_file() or not pdf.is_file():
+                errors.append(f"采购申请单 XLSX/PDF 未成对交付：{item}")
         count = 0
         for child in sorted(archive.iterdir()) if archive.is_dir() else []:
             if child.is_dir():
